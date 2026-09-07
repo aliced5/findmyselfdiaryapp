@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Find Myself Diary</title>
+    <title>微甜日常記錄</title>
     
     <style>
         :root {
@@ -47,7 +47,6 @@
         }
         .action-btn:disabled { background: var(--button-disabled); cursor: not-allowed; }
 
-        /* --- 分頁切換按鈕 (Tabs) --- */
         .tab-container {
             display: flex; background: #F9F8F6; border-radius: 100px;
             padding: 4px; margin-bottom: 24px;
@@ -59,7 +58,6 @@
         }
         .tab-btn.active { background: var(--primary-color); color: white; box-shadow: 0 4px 12px rgba(180, 165, 152, 0.3); }
 
-        /* --- 橫排月曆 --- */
         .calendar-strip { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 12px; margin-bottom: 20px; scrollbar-width: none; }
         .calendar-strip::-webkit-scrollbar { display: none; }
         
@@ -76,7 +74,6 @@
         .date-bubble.has-record { border: 2px solid var(--primary-light); }
         .date-bubble.active.has-record { border: 2px solid var(--primary-color); }
 
-        /* --- 上傳與歷史圖文 --- */
         textarea {
             width: 100%; height: 180px; background: #F9F8F6;
             border: 1px solid #E5E0DA; border-radius: 20px; padding: 16px;
@@ -108,24 +105,21 @@
 </div>
 
 <div id="mainApp" class="app-container" style="display: none;">
-    <!-- 分頁切換器 -->
     <div class="tab-container">
         <div class="tab-btn active" id="tabWriteBtn">📝 寫下今日</div>
         <div class="tab-btn" id="tabHistoryBtn">📅 歷史回顧</div>
     </div>
 
-    <!-- 寫日記區塊 -->
     <div id="uploadSection">
         <textarea id="postContent" placeholder="寫下至少 200 字的想法..."></textarea>
         <div class="word-count" id="wordCount">0/200</div>
         <label class="file-upload">
             <input type="file" id="photoUpload" accept="image/*">
-            <span id="fileName">＋ 上傳一張今日照片</span>
+            <span id="fileName">＋ 上傳一張今日照片 (可選)</span>
         </label>
-        <button class="action-btn" id="submitBtn" disabled>完成打卡</button>
+        <button class="action-btn" id="submitBtn" disabled>更新今日紀錄</button>
     </div>
 
-    <!-- 歷史回顧區塊 -->
     <div id="historySection" style="display: none;">
         <div class="calendar-strip" id="calendarStrip"></div>
         <div id="historyDisplayArea"></div>
@@ -173,14 +167,16 @@
         return days[date.getDay()];
     }
 
+    // 修復照片讀取：改用高穩定的 googleusercontent 格式
     function getDirectImageUrl(url) {
         if (!url) return '';
         const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-        if (match && match[1]) { return `https://drive.google.com/uc?id=${match[1]}`; }
+        if (match && match[1]) { 
+            return `https://lh3.googleusercontent.com/d/${match[1]}`; 
+        }
         return url;
     }
 
-    // --- 登入與註冊邏輯 ---
     loginBtn.addEventListener('click', async function() {
         const name = userNameInput.value.trim();
         const password = passwordInput.value.trim();
@@ -191,7 +187,6 @@
         loginBtn.disabled = true;
 
         try {
-            // 1. 發送 POST 請求驗證/註冊密碼
             const authResponse = await fetch(googleApiUrl, {
                 method: 'POST',
                 redirect: 'follow',
@@ -207,7 +202,6 @@
             currentUser = name;
             loginBtn.innerText = '讀取紀錄中...';
 
-            // 2. 驗證成功後，獲取該使用者的歷史資料
             const historyResponse = await fetch(`${googleApiUrl}?user=${encodeURIComponent(currentUser)}`);
             const historyResult = await historyResponse.json();
             
@@ -224,7 +218,6 @@
         }
     });
 
-    // --- 分頁切換邏輯 ---
     tabWriteBtn.addEventListener('click', () => {
         tabWriteBtn.classList.add('active');
         tabHistoryBtn.classList.remove('active');
@@ -240,18 +233,25 @@
         setTimeout(() => { calendarStrip.scrollLeft = calendarStrip.scrollWidth; }, 10);
     });
 
-    // --- 初始化與月曆邏輯 ---
     function initApp() {
         loginScreen.style.display = 'none';
         mainApp.style.display = 'block';
         
-        const today = new Date();
-        selectedDateStr = formatDate(today);
+        const todayStr = formatDate(new Date());
+        selectedDateStr = todayStr;
         
+        // 如果今天已經寫過，自動把文字帶入輸入框讓用戶可以編輯
+        if (userHistory[todayStr]) {
+            content.value = userHistory[todayStr].content || '';
+            currentLength = content.value.length;
+            wordCount.innerText = `${currentLength}/200`;
+        }
+        checkConditions();
+
         calendarStrip.innerHTML = '';
         for (let i = 13; i >= 0; i--) {
             const pastDate = new Date();
-            pastDate.setDate(today.getDate() - i);
+            pastDate.setDate(pastDate.getDate() - i);
             const dateStr = formatDate(pastDate);
             
             const bubble = document.createElement('div');
@@ -263,25 +263,41 @@
             bubble.onclick = () => selectDate(dateStr, bubble);
             calendarStrip.appendChild(bubble);
         }
-        
-        updateHistoryView();
     }
 
     function selectDate(dateStr, bubbleElement) {
         selectedDateStr = dateStr;
         document.querySelectorAll('.date-bubble').forEach(b => b.classList.remove('active'));
         bubbleElement.classList.add('active');
-        updateHistoryView();
+        
+        // 如果切換到今天，切回寫日記分頁並帶入內容
+        const todayStr = formatDate(new Date());
+        if (dateStr === todayStr) {
+            tabWriteBtn.click();
+            if (userHistory[todayStr]) {
+                content.value = userHistory[todayStr].content || '';
+                currentLength = content.value.length;
+                wordCount.innerText = `${currentLength}/200`;
+            } else {
+                content.value = '';
+                currentLength = 0;
+                wordCount.innerText = '0/200';
+            }
+            checkConditions();
+        } else {
+            // 如果是過去的日子，切到歷史回顧分頁顯示
+            tabHistoryBtn.click();
+            updateHistoryView();
+        }
     }
 
     function updateHistoryView() {
         const record = userHistory[selectedDateStr];
-
         if (record) {
             const directImgUrl = getDirectImageUrl(record.image);
             historyDisplayArea.innerHTML = `
                 <div class="history-card">
-                    <img src="${directImgUrl}" alt="今日照片載入中..." onerror="this.alt='照片無法載入'">
+                    <img src="${directImgUrl}" alt="當日照片" onerror="this.alt='照片無法載入'">
                     <div class="text-content">${record.content}</div>
                 </div>
             `;
@@ -290,14 +306,13 @@
         }
     }
 
-    // --- 上傳邏輯 ---
     let currentLength = 0;
     let hasPhoto = false;
 
     content.addEventListener('input', function() {
         currentLength = this.value.length;
         wordCount.innerText = `${currentLength}/200`;
-        submitBtn.disabled = !(currentLength >= 200 && hasPhoto);
+        checkConditions();
     });
 
     photoUpload.addEventListener('change', function() {
@@ -308,22 +323,33 @@
             fileName.innerText = '＋ 上傳一張今日照片';
             hasPhoto = false;
         }
-        submitBtn.disabled = !(currentLength >= 200 && hasPhoto);
+        checkConditions();
     });
 
+    function checkConditions() {
+        const todayStr = formatDate(new Date());
+        // 如果今天本來就有紀錄，就算沒有重新上傳照片，也可以直接更新文字送出
+        if (currentLength >= 200 && (hasPhoto || userHistory[todayStr])) {
+            submitBtn.disabled = false;
+        } else {
+            submitBtn.disabled = true;
+        }
+    }
+
     submitBtn.addEventListener('click', async function() {
-        submitBtn.innerText = '上傳中...請稍候';
+        submitBtn.innerText = '儲存中...請稍候';
         submitBtn.disabled = true;
 
-        const file = photoUpload.files[0];
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = async function() {
+        const todayStr = formatDate(new Date());
+        // 如果沒選新照片，就沿用今天的舊照片網址
+        let imagePayload = userHistory[todayStr] ? userHistory[todayStr].image : '';
+        
+        const executeUpload = async (imgData) => {
             const payload = {
-                action: 'upload', // 新增：告訴後端這是上傳動作
+                action: 'upload',
                 userName: currentUser, 
                 content: content.value,
-                image: reader.result
+                image: imgData
             };
 
             try {
@@ -337,33 +363,36 @@
                 const result = await response.json();
                 
                 if(result.status === 'success') {
-                    alert('打卡成功！');
-                    userHistory[formatDate(new Date())] = {
+                    alert('紀錄更新成功！');
+                    userHistory[todayStr] = {
                         content: payload.content,
-                        image: result.imageUrl
+                        image: result.imageUrl || imgData
                     };
                     document.querySelector('.date-bubble:last-child').classList.add('has-record');
-                    content.value = '';
-                    currentLength = 0;
-                    wordCount.innerText = '0/200';
-                    photoUpload.value = '';
-                    fileName.innerText = '＋ 上傳一張今日照片';
-                    hasPhoto = false;
-                    submitBtn.innerText = '完成打卡';
-                    submitBtn.disabled = true;
+                    submitBtn.innerText = '更新今日紀錄';
                     
-                    tabHistoryBtn.click();
-                    selectDate(formatDate(new Date()), document.querySelector('.date-bubble:last-child'));
-                    
+                    // 自動跳轉到歷史回顧看成果
+                    selectDate(todayStr, document.querySelector('.date-bubble:last-child'));
                 } else {
                     throw new Error(result.message);
                 }
             } catch (error) {
                 alert('發生錯誤：' + error.message);
-                submitBtn.innerText = '完成打卡';
+                submitBtn.innerText = '更新今日紀錄';
                 submitBtn.disabled = false;
             }
         };
+
+        if (photoUpload.files.length > 0) {
+            const file = photoUpload.files[0];
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async function() {
+                await executeUpload(reader.result);
+            };
+        } else {
+            await executeUpload(imagePayload);
+        }
     });
 </script>
 </body>
