@@ -187,10 +187,14 @@
 
             try {
                 // 發送請求給 Google Apps Script API
-                const response = await fetch(googleApiUrl, {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
+            const response = await fetch(googleApiUrl, {
+                method: 'POST',
+                redirect: 'follow', // 允許跟隨 Google 的重新導向
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8', // 偽裝成純文字以避開 CORS 預檢攔截
+                },
+                body: JSON.stringify(payload)
+            });
 
                 const result = await response.json();
                 
