@@ -99,18 +99,15 @@
 </head>
 <body>
 
-<!-- 1. 登入畫面 (新增密碼欄位) -->
 <div id="loginScreen" class="app-container">
     <h2>專屬空間 ☁️</h2>
-    <p style="text-align:center; color:var(--text-hint); font-size:14px; margin-bottom:24px;">請輸入名字與密碼進入</p>
+    <p style="text-align:center; color:var(--text-hint); font-size:14px; margin-bottom:24px;">若為首次登入，將自動設定為您的密碼</p>
     <input type="text" id="userNameInput" class="login-input" placeholder="名字 (例如：黃敏)" />
-    <input type="password" id="passwordInput" class="login-input" placeholder="專屬密碼" />
+    <input type="password" id="passwordInput" class="login-input" placeholder="設定或輸入密碼" />
     <button class="action-btn" id="loginBtn">進入日常</button>
 </div>
 
-<!-- 2. 主要應用畫面 -->
 <div id="mainApp" class="app-container" style="display: none;">
-    
     <!-- 分頁切換器 -->
     <div class="tab-container">
         <div class="tab-btn active" id="tabWriteBtn">📝 寫下今日</div>
@@ -138,13 +135,6 @@
 <script>
     // ==========================================
     const googleApiUrl = 'https://script.google.com/macros/s/AKfycbyTMA7RTVDM6JxcFQ-f_23g01onusY8uxeK5pOeQuIES_T7EQzoFy-5WjAJ8Gd-Dhe9cQ/exec';
-    
-    // 🔒 在這裡設定家人的帳號與密碼 (可以自行新增)
-    const familyAccounts = {
-        "黃敏": "1234",
-        "媽媽": "5678",
-        "爸爸": "0000"
-    };
     // ==========================================
 
     let currentUser = '';
@@ -190,35 +180,45 @@
         return url;
     }
 
-    // --- 登入驗證邏輯 ---
+    // --- 登入與註冊邏輯 ---
     loginBtn.addEventListener('click', async function() {
         const name = userNameInput.value.trim();
         const password = passwordInput.value.trim();
         
         if(!name || !password) { alert('名字和密碼都要輸入喔！'); return; }
         
-        // 檢查密碼是否正確
-        if(familyAccounts[name] !== password) {
-            alert('密碼錯誤或是找不到這個名字，請再試一次！');
-            return;
-        }
-        
-        currentUser = name;
-        loginBtn.innerText = '讀取紀錄中...';
+        loginBtn.innerText = '驗證中...';
         loginBtn.disabled = true;
 
         try {
-            const response = await fetch(`${googleApiUrl}?user=${encodeURIComponent(currentUser)}`);
-            const result = await response.json();
+            // 1. 發送 POST 請求驗證/註冊密碼
+            const authResponse = await fetch(googleApiUrl, {
+                method: 'POST',
+                redirect: 'follow',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'login', userName: name, password: password })
+            });
+            const authResult = await authResponse.json();
+
+            if (authResult.status !== 'success') {
+                throw new Error(authResult.message);
+            }
+
+            currentUser = name;
+            loginBtn.innerText = '讀取紀錄中...';
+
+            // 2. 驗證成功後，獲取該使用者的歷史資料
+            const historyResponse = await fetch(`${googleApiUrl}?user=${encodeURIComponent(currentUser)}`);
+            const historyResult = await historyResponse.json();
             
-            if(result.status === 'success') {
-                userHistory = result.data || {};
+            if(historyResult.status === 'success') {
+                userHistory = historyResult.data || {};
                 initApp(); 
             } else {
-                throw new Error(result.message);
+                throw new Error(historyResult.message);
             }
         } catch (error) {
-            alert('讀取失敗，請檢查網路或重試！');
+            alert(error.message);
             loginBtn.innerText = '進入日常';
             loginBtn.disabled = false;
         }
@@ -237,7 +237,6 @@
         tabWriteBtn.classList.remove('active');
         uploadSection.style.display = 'none';
         historySection.style.display = 'block';
-        // 切換到回顧區時，自動捲動月曆到最新的一天
         setTimeout(() => { calendarStrip.scrollLeft = calendarStrip.scrollWidth; }, 10);
     });
 
@@ -260,11 +259,7 @@
             if (dateStr === selectedDateStr) bubble.classList.add('active');
             if (userHistory[dateStr]) bubble.classList.add('has-record'); 
             
-            bubble.innerHTML = `
-                <div class="day-text">${getDayName(pastDate)}</div>
-                <div class="date-num">${pastDate.getDate()}</div>
-            `;
-            
+            bubble.innerHTML = `<div class="day-text">${getDayName(pastDate)}</div><div class="date-num">${pastDate.getDate()}</div>`;
             bubble.onclick = () => selectDate(dateStr, bubble);
             calendarStrip.appendChild(bubble);
         }
@@ -325,6 +320,7 @@
         reader.readAsDataURL(file);
         reader.onload = async function() {
             const payload = {
+                action: 'upload', // 新增：告訴後端這是上傳動作
                 userName: currentUser, 
                 content: content.value,
                 image: reader.result
@@ -342,7 +338,6 @@
                 
                 if(result.status === 'success') {
                     alert('打卡成功！');
-                    // 更新歷史紀錄並切換到回顧分頁
                     userHistory[formatDate(new Date())] = {
                         content: payload.content,
                         image: result.imageUrl
@@ -357,7 +352,6 @@
                     submitBtn.innerText = '完成打卡';
                     submitBtn.disabled = true;
                     
-                    // 自動跳轉到歷史回顧分頁看成果
                     tabHistoryBtn.click();
                     selectDate(formatDate(new Date()), document.querySelector('.date-bubble:last-child'));
                     
