@@ -18,23 +18,15 @@
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
+            background-color: var(--bg-color); color: var(--text-main);
             font-family: 'Helvetica Neue', Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
+            margin: 0; padding: 20px; display: flex; justify-content: center;
         }
 
         .app-container {
-            width: 100%;
-            max-width: 400px;
-            background: var(--card-bg);
-            border-radius: 32px; 
-            padding: 30px 20px;
+            width: 100%; max-width: 400px; background: var(--card-bg);
+            border-radius: 32px; padding: 30px 20px;
             box-shadow: 0 8px 24px rgba(180, 165, 152, 0.15);
-            /* 避免內容過長撐破容器 */
             overflow: hidden; 
         }
 
@@ -44,15 +36,31 @@
             width: 100%; padding: 16px; border-radius: 20px;
             border: 1px solid #E5E0DA; background: #F9F8F6;
             font-size: 18px; text-align: center; box-sizing: border-box;
-            margin-bottom: 24px; outline: none; color: var(--text-main);
+            margin-bottom: 16px; outline: none; color: var(--text-main);
         }
         .login-input:focus { border-color: var(--primary-color); }
 
-        .calendar-strip {
-            display: flex; overflow-x: auto; gap: 12px;
-            padding-bottom: 12px; margin-bottom: 20px;
-            scrollbar-width: none;
+        .action-btn { 
+            width: 100%; padding: 18px; border-radius: 100px; border: none; 
+            background: var(--primary-color); color: white; font-size: 18px; 
+            font-weight: 600; cursor: pointer; transition: 0.3s; margin-top: 8px;
         }
+        .action-btn:disabled { background: var(--button-disabled); cursor: not-allowed; }
+
+        /* --- 分頁切換按鈕 (Tabs) --- */
+        .tab-container {
+            display: flex; background: #F9F8F6; border-radius: 100px;
+            padding: 4px; margin-bottom: 24px;
+        }
+        .tab-btn {
+            flex: 1; text-align: center; padding: 12px 0; font-size: 16px;
+            font-weight: 600; color: var(--text-hint); border-radius: 100px;
+            cursor: pointer; transition: 0.3s;
+        }
+        .tab-btn.active { background: var(--primary-color); color: white; box-shadow: 0 4px 12px rgba(180, 165, 152, 0.3); }
+
+        /* --- 橫排月曆 --- */
+        .calendar-strip { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 12px; margin-bottom: 20px; scrollbar-width: none; }
         .calendar-strip::-webkit-scrollbar { display: none; }
         
         .date-bubble {
@@ -68,6 +76,7 @@
         .date-bubble.has-record { border: 2px solid var(--primary-light); }
         .date-bubble.active.has-record { border: 2px solid var(--primary-color); }
 
+        /* --- 上傳與歷史圖文 --- */
         textarea {
             width: 100%; height: 180px; background: #F9F8F6;
             border: 1px solid #E5E0DA; border-radius: 20px; padding: 16px;
@@ -79,50 +88,36 @@
         
         .file-upload { display: flex; align-items: center; justify-content: center; background: #F9F8F6; border: 2px dashed #D1CDCB; border-radius: 20px; padding: 20px; margin-bottom: 24px; cursor: pointer; color: var(--text-hint); }
         .file-upload input { display: none; }
-        
-        .action-btn { width: 100%; padding: 18px; border-radius: 100px; border: none; background: var(--primary-color); color: white; font-size: 18px; font-weight: 600; cursor: pointer; transition: 0.3s; }
-        .action-btn:disabled { background: var(--button-disabled); cursor: not-allowed; }
 
-        /* --- 修復：歷史圖文展示區 --- */
-        .history-card { display: flex; flex-direction: column; gap: 16px; animation: fadeIn 0.5s ease; }
-        
-        .history-card img { 
-            width: 100%; 
-            border-radius: 20px; 
-            object-fit: cover; 
-            /* 加上陰影讓照片更有質感 */
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
-        }
-        
-        .history-card .text-content { 
-            background: #F9F8F6; 
-            padding: 20px; 
-            border-radius: 20px; 
-            font-size: 16px; 
-            line-height: 1.6; 
-            /* 保留原本輸入的換行 */
-            white-space: pre-wrap; 
-            /* 強制長單字換行，解決 000000 衝出框框的問題 */
-            word-wrap: break-word;
-            word-break: break-all;
-        }
+        .history-card { display: flex; flex-direction: column; gap: 16px; animation: fadeIn 0.4s ease; }
+        .history-card img { width: 100%; border-radius: 20px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .history-card .text-content { background: #F9F8F6; padding: 20px; border-radius: 20px; font-size: 16px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; word-break: break-all; }
+        .empty-state { text-align: center; color: var(--text-hint); padding: 40px 0; animation: fadeIn 0.4s ease; }
 
-        .empty-state { text-align: center; color: var(--text-hint); padding: 40px 0; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
+<!-- 1. 登入畫面 (新增密碼欄位) -->
 <div id="loginScreen" class="app-container">
     <h2>專屬空間 ☁️</h2>
-    <p style="text-align:center; color:var(--text-hint); font-size:14px; margin-bottom:24px;">請輸入你的專屬名字進入</p>
-    <input type="text" id="userNameInput" class="login-input" placeholder="例如：黃敏" />
+    <p style="text-align:center; color:var(--text-hint); font-size:14px; margin-bottom:24px;">請輸入名字與密碼進入</p>
+    <input type="text" id="userNameInput" class="login-input" placeholder="名字 (例如：黃敏)" />
+    <input type="password" id="passwordInput" class="login-input" placeholder="專屬密碼" />
     <button class="action-btn" id="loginBtn">進入日常</button>
 </div>
 
+<!-- 2. 主要應用畫面 -->
 <div id="mainApp" class="app-container" style="display: none;">
-    <div class="calendar-strip" id="calendarStrip"></div>
+    
+    <!-- 分頁切換器 -->
+    <div class="tab-container">
+        <div class="tab-btn active" id="tabWriteBtn">📝 寫下今日</div>
+        <div class="tab-btn" id="tabHistoryBtn">📅 歷史回顧</div>
+    </div>
+
+    <!-- 寫日記區塊 -->
     <div id="uploadSection">
         <textarea id="postContent" placeholder="寫下至少 200 字的想法..."></textarea>
         <div class="word-count" id="wordCount">0/200</div>
@@ -132,13 +127,24 @@
         </label>
         <button class="action-btn" id="submitBtn" disabled>完成打卡</button>
     </div>
-    <div id="historySection" style="display: none;"></div>
+
+    <!-- 歷史回顧區塊 -->
+    <div id="historySection" style="display: none;">
+        <div class="calendar-strip" id="calendarStrip"></div>
+        <div id="historyDisplayArea"></div>
+    </div>
 </div>
 
 <script>
     // ==========================================
-    // ⚠️ 請替換成你最新部署的 Google Apps Script 網址
     const googleApiUrl = 'https://script.google.com/macros/s/AKfycbyTMA7RTVDM6JxcFQ-f_23g01onusY8uxeK5pOeQuIES_T7EQzoFy-5WjAJ8Gd-Dhe9cQ/exec';
+    
+    // 🔒 在這裡設定家人的帳號與密碼 (可以自行新增)
+    const familyAccounts = {
+        "黃敏": "1234",
+        "媽媽": "5678",
+        "爸爸": "0000"
+    };
     // ==========================================
 
     let currentUser = '';
@@ -148,11 +154,16 @@
     const loginScreen = document.getElementById('loginScreen');
     const mainApp = document.getElementById('mainApp');
     const userNameInput = document.getElementById('userNameInput');
+    const passwordInput = document.getElementById('passwordInput');
     const loginBtn = document.getElementById('loginBtn');
     
-    const calendarStrip = document.getElementById('calendarStrip');
+    const tabWriteBtn = document.getElementById('tabWriteBtn');
+    const tabHistoryBtn = document.getElementById('tabHistoryBtn');
     const uploadSection = document.getElementById('uploadSection');
     const historySection = document.getElementById('historySection');
+    
+    const calendarStrip = document.getElementById('calendarStrip');
+    const historyDisplayArea = document.getElementById('historyDisplayArea');
     
     const content = document.getElementById('postContent');
     const wordCount = document.getElementById('wordCount');
@@ -172,20 +183,25 @@
         return days[date.getDay()];
     }
 
-    // --- 修復：將 Google Drive 網頁連結轉換為「圖片直連網址」 ---
     function getDirectImageUrl(url) {
         if (!url) return '';
-        // 擷取網址中的 ID，並轉換成讀取圖片專用的 uc 網址
         const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-        if (match && match[1]) {
-            return `https://drive.google.com/uc?id=${match[1]}`;
-        }
+        if (match && match[1]) { return `https://drive.google.com/uc?id=${match[1]}`; }
         return url;
     }
 
+    // --- 登入驗證邏輯 ---
     loginBtn.addEventListener('click', async function() {
         const name = userNameInput.value.trim();
-        if(!name) { alert('請輸入名字！'); return; }
+        const password = passwordInput.value.trim();
+        
+        if(!name || !password) { alert('名字和密碼都要輸入喔！'); return; }
+        
+        // 檢查密碼是否正確
+        if(familyAccounts[name] !== password) {
+            alert('密碼錯誤或是找不到這個名字，請再試一次！');
+            return;
+        }
         
         currentUser = name;
         loginBtn.innerText = '讀取紀錄中...';
@@ -208,6 +224,24 @@
         }
     });
 
+    // --- 分頁切換邏輯 ---
+    tabWriteBtn.addEventListener('click', () => {
+        tabWriteBtn.classList.add('active');
+        tabHistoryBtn.classList.remove('active');
+        uploadSection.style.display = 'block';
+        historySection.style.display = 'none';
+    });
+
+    tabHistoryBtn.addEventListener('click', () => {
+        tabHistoryBtn.classList.add('active');
+        tabWriteBtn.classList.remove('active');
+        uploadSection.style.display = 'none';
+        historySection.style.display = 'block';
+        // 切換到回顧區時，自動捲動月曆到最新的一天
+        setTimeout(() => { calendarStrip.scrollLeft = calendarStrip.scrollWidth; }, 10);
+    });
+
+    // --- 初始化與月曆邏輯 ---
     function initApp() {
         loginScreen.style.display = 'none';
         mainApp.style.display = 'block';
@@ -234,45 +268,34 @@
             bubble.onclick = () => selectDate(dateStr, bubble);
             calendarStrip.appendChild(bubble);
         }
-        calendarStrip.scrollLeft = calendarStrip.scrollWidth;
-        updateView();
+        
+        updateHistoryView();
     }
 
     function selectDate(dateStr, bubbleElement) {
         selectedDateStr = dateStr;
         document.querySelectorAll('.date-bubble').forEach(b => b.classList.remove('active'));
         bubbleElement.classList.add('active');
-        updateView();
+        updateHistoryView();
     }
 
-    function updateView() {
-        const todayStr = formatDate(new Date());
+    function updateHistoryView() {
         const record = userHistory[selectedDateStr];
 
         if (record) {
-            uploadSection.style.display = 'none';
-            historySection.style.display = 'block';
-            
-            // 修復：套用直連網址轉換函數
             const directImgUrl = getDirectImageUrl(record.image);
-            
-            historySection.innerHTML = `
+            historyDisplayArea.innerHTML = `
                 <div class="history-card">
-                    <!-- 若圖片載入失敗，顯示備用文字 -->
                     <img src="${directImgUrl}" alt="今日照片載入中..." onerror="this.alt='照片無法載入'">
                     <div class="text-content">${record.content}</div>
                 </div>
             `;
-        } else if (selectedDateStr === todayStr) {
-            uploadSection.style.display = 'block';
-            historySection.style.display = 'none';
         } else {
-            uploadSection.style.display = 'none';
-            historySection.style.display = 'block';
-            historySection.innerHTML = `<div class="empty-state">這天沒有留下紀錄 🍃</div>`;
+            historyDisplayArea.innerHTML = `<div class="empty-state">這天沒有留下紀錄 🍃</div>`;
         }
     }
 
+    // --- 上傳邏輯 ---
     let currentLength = 0;
     let hasPhoto = false;
 
@@ -319,12 +342,25 @@
                 
                 if(result.status === 'success') {
                     alert('打卡成功！');
-                    userHistory[selectedDateStr] = {
+                    // 更新歷史紀錄並切換到回顧分頁
+                    userHistory[formatDate(new Date())] = {
                         content: payload.content,
                         image: result.imageUrl
                     };
-                    document.querySelector('.date-bubble.active').classList.add('has-record');
-                    updateView(); 
+                    document.querySelector('.date-bubble:last-child').classList.add('has-record');
+                    content.value = '';
+                    currentLength = 0;
+                    wordCount.innerText = '0/200';
+                    photoUpload.value = '';
+                    fileName.innerText = '＋ 上傳一張今日照片';
+                    hasPhoto = false;
+                    submitBtn.innerText = '完成打卡';
+                    submitBtn.disabled = true;
+                    
+                    // 自動跳轉到歷史回顧分頁看成果
+                    tabHistoryBtn.click();
+                    selectDate(formatDate(new Date()), document.querySelector('.date-bubble:last-child'));
+                    
                 } else {
                     throw new Error(result.message);
                 }
