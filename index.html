@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    
+    <!-- 讓 LINE 預覽時顯示 Find Myself Diary -->
     <title>Find Myself Diary</title>
+    <meta property="og:title" content="Find Myself Diary">
+    <meta property="og:description" content="專屬的日常與回顧空間 ☁️">
     
     <style>
         :root {
@@ -97,11 +101,11 @@
 <body>
 
 <div id="loginScreen" class="app-container">
-    <h2>專屬空間 ☁️</h2>
+    <h2>Find Myself Diary ☁️</h2>
     <p style="text-align:center; color:var(--text-hint); font-size:14px; margin-bottom:24px;">若為首次登入，將自動設定為您的密碼</p>
     <input type="text" id="userNameInput" class="login-input" placeholder="名字 (例如：AliceYumi)" />
     <input type="password" id="passwordInput" class="login-input" placeholder="設定或輸入密碼" />
-    <button class="action-btn" id="loginBtn">進入日常</button>
+    <button class="action-btn" id="loginBtn">進入空間</button>
 </div>
 
 <div id="mainApp" class="app-container" style="display: none;">
@@ -167,16 +171,6 @@
         return days[date.getDay()];
     }
 
-    // 修復照片讀取：改用高穩定的 googleusercontent 格式
-    function getDirectImageUrl(url) {
-        if (!url) return '';
-        const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-        if (match && match[1]) { 
-            return `https://lh3.googleusercontent.com/d/${match[1]}`; 
-        }
-        return url;
-    }
-
     loginBtn.addEventListener('click', async function() {
         const name = userNameInput.value.trim();
         const password = passwordInput.value.trim();
@@ -213,7 +207,7 @@
             }
         } catch (error) {
             alert(error.message);
-            loginBtn.innerText = '進入日常';
+            loginBtn.innerText = '進入空間';
             loginBtn.disabled = false;
         }
     });
@@ -240,7 +234,7 @@
         const todayStr = formatDate(new Date());
         selectedDateStr = todayStr;
         
-        // 如果今天已經寫過，自動把文字帶入輸入框讓用戶可以編輯
+        // 如果今天已經寫過，自動帶入文字並解鎖按鈕
         if (userHistory[todayStr]) {
             content.value = userHistory[todayStr].content || '';
             currentLength = content.value.length;
@@ -270,7 +264,6 @@
         document.querySelectorAll('.date-bubble').forEach(b => b.classList.remove('active'));
         bubbleElement.classList.add('active');
         
-        // 如果切換到今天，切回寫日記分頁並帶入內容
         const todayStr = formatDate(new Date());
         if (dateStr === todayStr) {
             tabWriteBtn.click();
@@ -285,7 +278,6 @@
             }
             checkConditions();
         } else {
-            // 如果是過去的日子，切到歷史回顧分頁顯示
             tabHistoryBtn.click();
             updateHistoryView();
         }
@@ -293,11 +285,16 @@
 
     function updateHistoryView() {
         const record = userHistory[selectedDateStr];
-        if (record) {
-            const directImgUrl = getDirectImageUrl(record.image);
+        if (record && record.image) {
             historyDisplayArea.innerHTML = `
                 <div class="history-card">
-                    <img src="${directImgUrl}" alt="當日照片" onerror="this.alt='照片無法載入'">
+                    <img src="${record.image}" alt="當日照片" onerror="this.alt='照片無法載入'">
+                    <div class="text-content">${record.content}</div>
+                </div>
+            `;
+        } else if (record) {
+            historyDisplayArea.innerHTML = `
+                <div class="history-card">
                     <div class="text-content">${record.content}</div>
                 </div>
             `;
@@ -337,61 +334,78 @@
     }
 
     submitBtn.addEventListener('click', async function() {
-        submitBtn.innerText = '儲存中...請稍候';
+        submitBtn.innerText = '上傳圖片中...';
         submitBtn.disabled = true;
 
         const todayStr = formatDate(new Date());
-        // 如果沒選新照片，就沿用今天的舊照片網址
-        let imagePayload = userHistory[todayStr] ? userHistory[todayStr].image : '';
-        
-        const executeUpload = async (imgData) => {
-            const payload = {
-                action: 'upload',
-                userName: currentUser, 
-                content: content.value,
-                image: imgData
-            };
+        let imageUrl = userHistory[todayStr] ? userHistory[todayStr].image : '';
 
-            try {
-                const response = await fetch(googleApiUrl, {
-                    method: 'POST',
-                    redirect: 'follow',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
-                
-                if(result.status === 'success') {
-                    alert('紀錄更新成功！');
-                    userHistory[todayStr] = {
-                        content: payload.content,
-                        image: result.imageUrl || imgData
-                    };
-                    document.querySelector('.date-bubble:last-child').classList.add('has-record');
-                    submitBtn.innerText = '更新今日紀錄';
-                    
-                    // 自動跳轉到歷史回顧看成果
-                    selectDate(todayStr, document.querySelector('.date-bubble:last-child'));
-                } else {
-                    throw new Error(result.message);
-                }
-            } catch (error) {
-                alert('發生錯誤：' + error.message);
-                submitBtn.innerText = '更新今日紀錄';
-                submitBtn.disabled = false;
-            }
-        };
-
+        // 如果用戶有選擇新照片，先上傳到 Imgur 取得絕對直連網址
         if (photoUpload.files.length > 0) {
             const file = photoUpload.files[0];
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async function() {
-                await executeUpload(reader.result);
-            };
-        } else {
-            await executeUpload(imagePayload);
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const imgurRes = await fetch('https://api.imgur.com/3/image', {
+                    method: 'POST',
+                    headers: {
+                        // 使用 Imgur 公開匿名上傳 Client ID
+                        'Authorization': 'Client-ID 546c25a59c58ad7'
+                    },
+                    body: formData
+                });
+                const imgurData = await imgurRes.json();
+                if (imgurData.success) {
+                    imageUrl = imgurData.data.link;
+                } else {
+                    throw new Error('圖片上傳失敗');
+                }
+            } catch (err) {
+                alert('圖片上傳發生錯誤，請重試');
+                submitBtn.innerText = '更新今日紀錄';
+                submitBtn.disabled = false;
+                return;
+            }
+        }
+
+        submitBtn.innerText = '儲存紀錄中...';
+
+        const payload = {
+            action: 'upload',
+            userName: currentUser, 
+            content: content.value,
+            image: imageUrl
+        };
+
+        try {
+            const response = await fetch(googleApiUrl, {
+                method: 'POST',
+                redirect: 'follow',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            
+            if(result.status === 'success') {
+                alert('紀錄更新成功！');
+                userHistory[todayStr] = {
+                    content: payload.content,
+                    image: imageUrl
+                };
+                document.querySelector('.date-bubble:last-child').classList.add('has-record');
+                submitBtn.innerText = '更新今日紀錄';
+                
+                // 自動跳轉到歷史回顧看成果
+                selectDate(todayStr, document.querySelector('.date-bubble:last-child'));
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            alert('發生錯誤：' + error.message);
+            submitBtn.innerText = '更新今日紀錄';
+            submitBtn.disabled = false;
         }
     });
 </script>
