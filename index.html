@@ -2,17 +2,17 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <!-- 這兩行讓網頁在手機上表現得像原生 App，防止縮放並隱藏瀏覽器介面 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>微甜日常記錄</title>
     
     <style>
-        /* 莫蘭迪色系與圓角設計 (UI/UX 核心) */
+        /* 莫蘭迪色系與基礎設計 */
         :root {
-            --bg-color: #F0EAE3; /* 燕麥奶白背景 */
+            --bg-color: #F0EAE3; 
             --card-bg: #FFFFFF;
-            --primary-color: #B4A598; /* 霧面奶茶色 (主色調) */
+            --primary-color: #B4A598; 
+            --primary-light: #D5CCC4;
             --button-disabled: #D1CDCB;
             --text-main: #5C544F;
             --text-hint: #9C9691;
@@ -25,25 +25,73 @@
             margin: 0;
             padding: 20px;
             display: flex;
-            justify-content: center; /* 讓內容在畫面上水平置中 */
+            justify-content: center;
         }
 
         .app-container {
             width: 100%;
             max-width: 400px;
             background: var(--card-bg);
-            border-radius: 32px; /* 大圓角減壓設計 */
+            border-radius: 32px; 
             padding: 30px 20px;
-            box-shadow: 0 8px 24px rgba(180, 165, 152, 0.15); /* 柔和的陰影 */
+            box-shadow: 0 8px 24px rgba(180, 165, 152, 0.15);
         }
 
-        h2 {
+        h2 { text-align: center; font-weight: 500; margin-bottom: 24px; }
+
+        /* --- 登入畫面專屬樣式 --- */
+        .login-input {
+            width: 100%;
+            padding: 16px;
+            border-radius: 20px;
+            border: 1px solid #E5E0DA;
+            background: #F9F8F6;
+            font-size: 18px;
             text-align: center;
-            font-weight: 500;
+            box-sizing: border-box;
             margin-bottom: 24px;
+            outline: none;
+            color: var(--text-main);
         }
+        .login-input:focus { border-color: var(--primary-color); }
 
-        /* 200字輸入框樣式 */
+        /* --- 橫排月曆樣式 --- */
+        .calendar-strip {
+            display: flex;
+            overflow-x: auto;
+            gap: 12px;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+            scrollbar-width: none; /* 隱藏滾動條 Firefox */
+        }
+        .calendar-strip::-webkit-scrollbar { display: none; /* 隱藏滾動條 Chrome/Safari */ }
+        
+        .date-bubble {
+            flex: 0 0 auto;
+            width: 56px;
+            height: 72px;
+            border-radius: 100px;
+            background: #F9F8F6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.3s;
+            color: var(--text-hint);
+        }
+        .date-bubble .day-text { font-size: 12px; margin-bottom: 4px; }
+        .date-bubble .date-num { font-size: 18px; font-weight: 600; }
+        
+        .date-bubble.active {
+            background: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px 12px rgba(180, 165, 152, 0.4);
+        }
+        .date-bubble.has-record { border: 2px solid var(--primary-light); }
+        .date-bubble.active.has-record { border: 2px solid var(--primary-color); }
+
+        /* --- 上傳與歷史紀錄樣式 --- */
         textarea {
             width: 100%;
             height: 180px;
@@ -52,100 +100,216 @@
             border-radius: 20px;
             padding: 16px;
             font-size: 16px;
-            box-sizing: border-box; /* 確保 padding 不會撐破寬度 */
-            resize: none; /* 禁止使用者隨意拉大輸入框 */
+            box-sizing: border-box;
+            resize: none;
             outline: none;
             color: var(--text-main);
         }
+        textarea:focus { border-color: var(--primary-color); }
+        .word-count { text-align: right; font-size: 14px; color: var(--text-hint); margin-top: 8px; margin-bottom: 20px; }
+        
+        .file-upload { display: flex; align-items: center; justify-content: center; background: #F9F8F6; border: 2px dashed #D1CDCB; border-radius: 20px; padding: 20px; margin-bottom: 24px; cursor: pointer; color: var(--text-hint); }
+        .file-upload input { display: none; }
+        
+        .action-btn { width: 100%; padding: 18px; border-radius: 100px; border: none; background: var(--primary-color); color: white; font-size: 18px; font-weight: 600; cursor: pointer; transition: 0.3s; }
+        .action-btn:disabled { background: var(--button-disabled); cursor: not-allowed; }
 
-        textarea:focus {
-            border-color: var(--primary-color);
-        }
+        /* 歷史圖文展示區 */
+        .history-card { display: flex; flex-direction: column; gap: 16px; animation: fadeIn 0.5s ease; }
+        .history-card img { width: 100%; border-radius: 20px; object-fit: cover; }
+        .history-card .text-content { background: #F9F8F6; padding: 20px; border-radius: 20px; font-size: 16px; line-height: 1.6; white-space: pre-wrap; }
+        .empty-state { text-align: center; color: var(--text-hint); padding: 40px 0; }
 
-        .word-count {
-            text-align: right;
-            font-size: 14px;
-            color: var(--text-hint);
-            margin-top: 8px;
-            margin-bottom: 20px;
-        }
-
-        /* 檔案上傳按鈕樣式 */
-        .file-upload {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #F9F8F6;
-            border: 2px dashed #D1CDCB;
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 24px;
-            cursor: pointer;
-            color: var(--text-hint);
-        }
-
-        /* 隱藏原本醜醜的上傳按鈕 */
-        .file-upload input {
-            display: none;
-        }
-
-        .submit-btn {
-            width: 100%;
-            padding: 18px;
-            border-radius: 100px; /* 全圓角膠囊按鈕 */
-            border: none;
-            background: var(--primary-color);
-            color: white;
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .submit-btn:disabled {
-            background: var(--button-disabled);
-            cursor: not-allowed;
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-<div class="app-container">
-    <h2>今日份的紀錄 ☁️</h2>
+<!-- 1. 登入畫面 -->
+<div id="loginScreen" class="app-container">
+    <h2>專屬空間 ☁️</h2>
+    <p style="text-align:center; color:var(--text-hint); font-size:14px; margin-bottom:24px;">請輸入你的專屬名字進入</p>
+    <input type="text" id="userNameInput" class="login-input" placeholder="例如：黃敏" />
+    <button class="action-btn" id="loginBtn">進入日常</button>
+</div>
+
+<!-- 2. 主要應用畫面 (預設隱藏) -->
+<div id="mainApp" class="app-container" style="display: none;">
     
-    <textarea id="postContent" placeholder="寫下至少 200 字的想法..."></textarea>
-    <div class="word-count" id="wordCount">0/200</div>
+    <!-- 橫排月曆 -->
+    <div class="calendar-strip" id="calendarStrip"></div>
 
-    <label class="file-upload">
-        <input type="file" id="photoUpload" accept="image/*">
-        <span id="fileName">＋ 上傳一張今日照片</span>
-    </label>
+    <!-- 上傳區塊 (今天且尚未打卡時顯示) -->
+    <div id="uploadSection">
+        <textarea id="postContent" placeholder="寫下至少 200 字的想法..."></textarea>
+        <div class="word-count" id="wordCount">0/200</div>
+        <label class="file-upload">
+            <input type="file" id="photoUpload" accept="image/*">
+            <span id="fileName">＋ 上傳一張今日照片</span>
+        </label>
+        <button class="action-btn" id="submitBtn" disabled>完成打卡</button>
+    </div>
 
-    <button class="submit-btn" id="submitBtn" disabled>完成打卡</button>
+    <!-- 歷史回顧區塊 (過去日期或已打卡時顯示) -->
+    <div id="historySection" style="display: none;">
+        <!-- 內容由 JavaScript 動態填入 -->
+    </div>
 </div>
 
 <script>
-    // == 1. 請將下面的網址換成你在步驟三取得的 Web App URL ==
+    // ==========================================
+    // ⚠️ 請替換成你最新部署的 Google Apps Script 網址
     const googleApiUrl = 'https://script.google.com/macros/s/AKfycbyTMA7RTVDM6JxcFQ-f_23g01onusY8uxeK5pOeQuIES_T7EQzoFy-5WjAJ8Gd-Dhe9cQ/exec';
+    // ==========================================
 
-    // == 2. 介面互動與字數統計邏輯 ==
+    let currentUser = '';
+    let userHistory = {}; // 儲存雲端抓回來的歷史紀錄
+    let selectedDateStr = ''; // 目前選擇的日期 (YYYY-MM-DD)
+
+    // DOM 元素
+    const loginScreen = document.getElementById('loginScreen');
+    const mainApp = document.getElementById('mainApp');
+    const userNameInput = document.getElementById('userNameInput');
+    const loginBtn = document.getElementById('loginBtn');
+    
+    const calendarStrip = document.getElementById('calendarStrip');
+    const uploadSection = document.getElementById('uploadSection');
+    const historySection = document.getElementById('historySection');
+    
     const content = document.getElementById('postContent');
     const wordCount = document.getElementById('wordCount');
     const photoUpload = document.getElementById('photoUpload');
     const fileName = document.getElementById('fileName');
     const submitBtn = document.getElementById('submitBtn');
 
+    // 格式化日期函數 (回傳 YYYY-MM-DD)
+    function formatDate(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    // 取得星期幾
+    function getDayName(date) {
+        const days = ['日', '一', '二', '三', '四', '五', '六'];
+        return days[date.getDay()];
+    }
+
+    // --- 登入與資料讀取邏輯 ---
+    loginBtn.addEventListener('click', async function() {
+        const name = userNameInput.value.trim();
+        if(!name) { alert('請輸入名字！'); return; }
+        
+        currentUser = name;
+        loginBtn.innerText = '讀取紀錄中...';
+        loginBtn.disabled = true;
+
+        try {
+            // 向後端請求該使用者的歷史資料
+            const response = await fetch(`${googleApiUrl}?user=${encodeURIComponent(currentUser)}`);
+            const result = await response.json();
+            
+            if(result.status === 'success') {
+                userHistory = result.data || {};
+                initApp(); // 初始化主畫面
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            alert('讀取失敗，請檢查網路或重試！');
+            loginBtn.innerText = '進入日常';
+            loginBtn.disabled = false;
+        }
+    });
+
+    // --- 初始化主畫面與月曆 ---
+    function initApp() {
+        loginScreen.style.display = 'none';
+        mainApp.style.display = 'block';
+        
+        const today = new Date();
+        selectedDateStr = formatDate(today);
+        
+        // 產生最近 14 天的日期氣泡
+        calendarStrip.innerHTML = '';
+        for (let i = 13; i >= 0; i--) {
+            const pastDate = new Date();
+            pastDate.setDate(today.getDate() - i);
+            const dateStr = formatDate(pastDate);
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'date-bubble';
+            if (dateStr === selectedDateStr) bubble.classList.add('active');
+            if (userHistory[dateStr]) bubble.classList.add('has-record'); // 如果當天有打卡，加上特殊邊框標記
+            
+            bubble.innerHTML = `
+                <div class="day-text">${getDayName(pastDate)}</div>
+                <div class="date-num">${pastDate.getDate()}</div>
+            `;
+            
+            bubble.onclick = () => selectDate(dateStr, bubble);
+            calendarStrip.appendChild(bubble);
+        }
+        
+        // 自動滾動到最右邊（今天）
+        calendarStrip.scrollLeft = calendarStrip.scrollWidth;
+        
+        updateView();
+    }
+
+    // 選擇日期事件
+    function selectDate(dateStr, bubbleElement) {
+        selectedDateStr = dateStr;
+        
+        // 更新 active 樣式
+        document.querySelectorAll('.date-bubble').forEach(b => b.classList.remove('active'));
+        bubbleElement.classList.add('active');
+        
+        updateView();
+    }
+
+    // 根據選擇的日期切換「上傳區」或「回顧區」
+    function updateView() {
+        const todayStr = formatDate(new Date());
+        const record = userHistory[selectedDateStr];
+
+        if (record) {
+            // 該日期有紀錄 -> 顯示圖文回顧
+            uploadSection.style.display = 'none';
+            historySection.style.display = 'block';
+            historySection.innerHTML = `
+                <div class="history-card">
+                    <img src="${record.image}" alt="當日照片">
+                    <div class="text-content">${record.content}</div>
+                </div>
+            `;
+        } else if (selectedDateStr === todayStr) {
+            // 是今天且尚未打卡 -> 顯示上傳介面
+            uploadSection.style.display = 'block';
+            historySection.style.display = 'none';
+        } else {
+            // 是過去的日期且沒打卡 -> 顯示空白提示
+            uploadSection.style.display = 'none';
+            historySection.style.display = 'block';
+            historySection.innerHTML = `
+                <div class="empty-state">
+                    這天沒有留下紀錄 🍃
+                </div>
+            `;
+        }
+    }
+
+    // --- 上傳打卡邏輯 (延續之前的設定，並加入 currentUser) ---
     let currentLength = 0;
     let hasPhoto = false;
 
-    // 監聽文字輸入，更新字數統計
     content.addEventListener('input', function() {
         currentLength = this.value.length;
         wordCount.innerText = `${currentLength}/200`;
         checkConditions();
     });
 
-    // 監聽照片上傳，更新檔名顯示
     photoUpload.addEventListener('change', function() {
         if(this.files.length > 0) {
             fileName.innerText = '📸 ' + this.files[0].name;
@@ -157,50 +321,44 @@
         checkConditions();
     });
 
-    // 檢查是否達到送出條件：至少 200 字且有上傳照片
     function checkConditions() {
-        if(currentLength >= 200 && hasPhoto) {
-            submitBtn.disabled = false; // 啟用按鈕
-        } else {
-            submitBtn.disabled = true;  // 禁用按鈕
-        }
+        submitBtn.disabled = !(currentLength >= 200 && hasPhoto);
     }
 
-    // == 3. 上傳資料到 Google Drive 與 Google 試算表 ==
     submitBtn.addEventListener('click', async function() {
         submitBtn.innerText = '上傳中...請稍候';
         submitBtn.disabled = true;
 
         const file = photoUpload.files[0];
-        
-        // 將圖片轉換成 Base64 格式，Google Apps Script 才能處理
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = async function() {
-            const base64Image = reader.result;
-
-            // 準備要傳送給 Google 的資料包
             const payload = {
+                userName: currentUser, // 將登入者名字一併傳給後端
                 content: content.value,
-                image: base64Image
+                image: reader.result
             };
 
             try {
-                // 發送請求給 Google Apps Script API
-            const response = await fetch(googleApiUrl, {
-                method: 'POST',
-                redirect: 'follow', // 允許跟隨 Google 的重新導向
-                headers: {
-                    'Content-Type': 'text/plain;charset=utf-8', // 偽裝成純文字以避開 CORS 預檢攔截
-                },
-                body: JSON.stringify(payload)
-            });
+                const response = await fetch(googleApiUrl, {
+                    method: 'POST',
+                    redirect: 'follow',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
 
                 const result = await response.json();
                 
                 if(result.status === 'success') {
-                    alert('打卡成功！已存入雲端紀錄 ☁️');
-                    window.location.reload(); // 成功後重整畫面，準備迎接隔天的打卡
+                    alert('打卡成功！');
+                    // 更新本地歷史紀錄並重新渲染畫面
+                    userHistory[selectedDateStr] = {
+                        content: payload.content,
+                        image: result.imageUrl
+                    };
+                    // 給當天的日期氣泡加上標記
+                    document.querySelector('.date-bubble.active').classList.add('has-record');
+                    updateView(); 
                 } else {
                     throw new Error(result.message);
                 }
