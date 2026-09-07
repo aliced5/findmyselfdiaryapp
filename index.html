@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <!-- 讓 LINE 預覽時顯示 Find Myself Diary -->
     <title>Find Myself Diary</title>
     <meta property="og:title" content="Find Myself Diary">
-    <meta property="og:description" content="專屬的日常與回顧空間 ☁️">
+    <meta property="og:description" content="專屬的日常與回顧空間☁️">
     
     <style>
         :root {
@@ -102,7 +101,7 @@
 
 <div id="loginScreen" class="app-container">
     <h2>Find Myself Diary ☁️</h2>
-    <p style="text-align:center; color:var(--text-hint); font-size:14px; margin-bottom:24px;">若為首次登入，將自動設定為您的密碼</p>
+    <p style="text-align:center; color:var(--text-hint); font-size:14px; margin-bottom:24px;">第一次登入的話，這就是我的密碼呦！</p>
     <input type="text" id="userNameInput" class="login-input" placeholder="名字 (例如：AliceYumi)" />
     <input type="password" id="passwordInput" class="login-input" placeholder="設定或輸入密碼" />
     <button class="action-btn" id="loginBtn">進入空間</button>
@@ -110,8 +109,8 @@
 
 <div id="mainApp" class="app-container" style="display: none;">
     <div class="tab-container">
-        <div class="tab-btn active" id="tabWriteBtn">📝 寫下今日</div>
-        <div class="tab-btn" id="tabHistoryBtn">📅 歷史回顧</div>
+        <div class="tab-btn active" id="tabWriteBtn">📝 今天的我</div>
+        <div class="tab-btn" id="tabHistoryBtn">📅 之前的我</div>
     </div>
 
     <div id="uploadSection">
@@ -119,7 +118,7 @@
         <div class="word-count" id="wordCount">0/200</div>
         <label class="file-upload">
             <input type="file" id="photoUpload" accept="image/*">
-            <span id="fileName">＋ 上傳一張今日照片 (可選)</span>
+            <span id="fileName">＋ 上傳一張我的今天 (可選)</span>
         </label>
         <button class="action-btn" id="submitBtn" disabled>更新今日紀錄</button>
     </div>
@@ -234,7 +233,6 @@
         const todayStr = formatDate(new Date());
         selectedDateStr = todayStr;
         
-        // 如果今天已經寫過，自動帶入文字並解鎖按鈕
         if (userHistory[todayStr]) {
             content.value = userHistory[todayStr].content || '';
             currentLength = content.value.length;
@@ -317,7 +315,7 @@
             fileName.innerText = '📸 ' + this.files[0].name;
             hasPhoto = true;
         } else {
-            fileName.innerText = '＋ 上傳一張今日照片';
+            fileName.innerText = '＋ 上傳一張我的今日';
             hasPhoto = false;
         }
         checkConditions();
@@ -325,7 +323,6 @@
 
     function checkConditions() {
         const todayStr = formatDate(new Date());
-        // 如果今天本來就有紀錄，就算沒有重新上傳照片，也可以直接更新文字送出
         if (currentLength >= 200 && (hasPhoto || userHistory[todayStr])) {
             submitBtn.disabled = false;
         } else {
@@ -334,78 +331,59 @@
     }
 
     submitBtn.addEventListener('click', async function() {
-        submitBtn.innerText = '上傳圖片中...';
+        submitBtn.innerText = '儲存中...請稍候';
         submitBtn.disabled = true;
 
         const todayStr = formatDate(new Date());
-        let imageUrl = userHistory[todayStr] ? userHistory[todayStr].image : '';
 
-        // 如果用戶有選擇新照片，先上傳到 Imgur 取得絕對直連網址
-        if (photoUpload.files.length > 0) {
-            const file = photoUpload.files[0];
-            const formData = new FormData();
-            formData.append('image', file);
+        const sendData = async (imageBase64) => {
+            const payload = {
+                action: 'upload',
+                userName: currentUser, 
+                content: content.value,
+                image: imageBase64
+            };
 
             try {
-                const imgurRes = await fetch('https://api.imgur.com/3/image', {
+                const response = await fetch(googleApiUrl, {
                     method: 'POST',
-                    headers: {
-                        // 使用 Imgur 公開匿名上傳 Client ID
-                        'Authorization': 'Client-ID 546c25a59c58ad7'
-                    },
-                    body: formData
+                    redirect: 'follow',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
                 });
-                const imgurData = await imgurRes.json();
-                if (imgurData.success) {
-                    imageUrl = imgurData.data.link;
+
+                const result = await response.json();
+                
+                if(result.status === 'success') {
+                    alert('紀錄更新成功！');
+                    userHistory[todayStr] = {
+                        content: payload.content,
+                        image: result.imageUrl || imageBase64
+                    };
+                    document.querySelector('.date-bubble:last-child').classList.add('has-record');
+                    submitBtn.innerText = '更新今日紀錄';
+                    
+                    selectDate(todayStr, document.querySelector('.date-bubble:last-child'));
                 } else {
-                    throw new Error('圖片上傳失敗');
+                    throw new Error(result.message);
                 }
-            } catch (err) {
-                alert('圖片上傳發生錯誤，請重試');
+            } catch (error) {
+                alert('發生錯誤：' + error.message);
                 submitBtn.innerText = '更新今日紀錄';
                 submitBtn.disabled = false;
-                return;
             }
-        }
-
-        submitBtn.innerText = '儲存紀錄中...';
-
-        const payload = {
-            action: 'upload',
-            userName: currentUser, 
-            content: content.value,
-            image: imageUrl
         };
 
-        try {
-            const response = await fetch(googleApiUrl, {
-                method: 'POST',
-                redirect: 'follow',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(payload)
-            });
-
-            const result = await response.json();
-            
-            if(result.status === 'success') {
-                alert('紀錄更新成功！');
-                userHistory[todayStr] = {
-                    content: payload.content,
-                    image: imageUrl
-                };
-                document.querySelector('.date-bubble:last-child').classList.add('has-record');
-                submitBtn.innerText = '更新今日紀錄';
-                
-                // 自動跳轉到歷史回顧看成果
-                selectDate(todayStr, document.querySelector('.date-bubble:last-child'));
-            } else {
-                throw new Error(result.message);
-            }
-        } catch (error) {
-            alert('發生錯誤：' + error.message);
-            submitBtn.innerText = '更新今日紀錄';
-            submitBtn.disabled = false;
+        if (photoUpload.files.length > 0) {
+            const file = photoUpload.files[0];
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async function() {
+                await sendData(reader.result);
+            };
+        } else {
+            const oldImage = userHistory[todayStr] ? userHistory[todayStr].image : '';
+            await sendData(oldImage);
         }
     });
 </script>
